@@ -99,7 +99,7 @@ export function TopBar() {
           <span className="font-bold text-white text-sm hidden sm:block">AutoPass</span>
         </Link>
 
-        <nav className="flex items-center gap-0.5 flex-1">
+        <nav className="hidden md:flex items-center gap-0.5 flex-1">
           {navItems.filter((item) => !item.adminOnly || isAdmin).map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             return (

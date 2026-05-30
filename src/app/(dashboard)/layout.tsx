@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { SessionProvider } from "next-auth/react";
-import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/shared/BottomNav";
 import { LocationSetupBanner } from "@/components/shared/LocationSetup";
@@ -32,14 +31,12 @@ function SubscriptionBanner() {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <div className="flex h-screen overflow-hidden bg-slate-50">
-        <Sidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <TopBar />
-          <SubscriptionBanner />
-          <LocationSetupBanner />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">{children}</main>
-        </div>
+      <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
+        <TopBar />
+        <SubscriptionBanner />
+        <LocationSetupBanner />
+        {/* pb-16 on mobile gives room for the fixed BottomNav */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-16 md:pb-6">{children}</main>
       </div>
       <BottomNav />
     </SessionProvider>
