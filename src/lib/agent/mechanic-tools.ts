@@ -12,7 +12,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, gte, sql, count, sum, desc, lte } from "drizzle-orm";
 import { subDays, subMonths } from "date-fns";
-import type { ToolDefinition } from "./state";
+import type { ToolDefinition } from "./tools";
 
 export interface MechanicContext {
   mechanicId: string;
@@ -271,7 +271,7 @@ export async function getMechanicRevenueTrend(
     .orderBy(sql`to_char(${repairJobs.jobDate}::date, 'YYYY-MM')`);
 
   return {
-    months,
+    months: input.months ?? "6",
     trend: rows.map(r => ({
       month: r.month,
       revenue_ghs: parseFloat(r.revenue ?? "0").toFixed(2),

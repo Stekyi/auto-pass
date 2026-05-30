@@ -127,7 +127,16 @@ export async function POST(req: NextRequest) {
   const { parts, ...jobData } = parsed.data;
 
   const [job] = await db.insert(repairJobs).values({
-    ...jobData,
+    vehicleId: jobData.vehicleId,
+    customerId: jobData.customerId,
+    description: jobData.description ?? null,
+    mileageAtJob: jobData.mileageAtJob ?? null,
+    // Drizzle numeric columns require string values
+    laborCostGhs: jobData.laborCostGhs != null ? String(jobData.laborCostGhs) : null,
+    partsCostGhs: jobData.partsCostGhs != null ? String(jobData.partsCostGhs) : null,
+    totalCostGhs: jobData.totalCostGhs != null ? String(jobData.totalCostGhs) : null,
+    jobDate: jobData.jobDate,
+    status: jobData.status,
     mechanicId: user.mechanicId,
     jobNumber,
     recordedBy: user.id || null,
@@ -136,7 +145,13 @@ export async function POST(req: NextRequest) {
 
   if (parts && parts.length > 0) {
     await db.insert(partsUsed).values(
-      parts.map((p) => ({ ...p, jobId: job.id }))
+      parts.map((p) => ({
+        jobId: job.id,
+        partName: p.partName,
+        partNumber: p.partNumber ?? null,
+        quantity: p.quantity,
+        unitCostGhs: p.unitCostGhs != null ? String(p.unitCostGhs) : null,
+      }))
     );
 
     await autoScheduleParts(
@@ -150,7 +165,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Update vehicle mileage if provided
-  if (job.mileageAtJob) {
+  if (job.mileageAtJob != null) {
     await db.update(vehicles)
       .set({ currentMileageKm: job.mileageAtJob, updatedAt: new Date() })
       .where(eq(vehicles.id, job.vehicleId));

@@ -2,7 +2,8 @@
 // Supports Anthropic (Claude) and OpenAI. Configured via admin settings.
 // New providers can be added by implementing the `ModelResponse` contract.
 
-import type { ChatMessage, ToolCall, ToolDefinition } from "./state";
+import type { ChatMessage, ToolCall } from "./state";
+import type { ToolDefinition } from "./tools";
 export type { ToolDefinition };
 
 export interface ModelConfig {
@@ -100,21 +101,21 @@ async function callOpenAI(
   messages: ChatMessage[],
   tools: ToolDefinition[]
 ): Promise<ModelResponse> {
-  const { default: OpenAI } = await import("openai").catch(() => {
+  // Use require-style dynamic import to avoid TypeScript namespace issues
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const OpenAI = (await import("openai").catch(() => {
     throw new Error("openai package not installed. Run: npm i openai");
-  });
+  })).default as any;
 
   const client = new OpenAI({ apiKey: config.apiKey });
 
-  const openaiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+  // Build messages array without relying on OpenAI namespace types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const openaiMessages: any[] = [
     { role: "system", content: systemPrompt },
-    ...messages.map((m): OpenAI.Chat.ChatCompletionMessageParam => {
+    ...messages.map((m) => {
       if (m.role === "tool") {
-        return {
-          role: "tool",
-          tool_call_id: m.tool_call_id!,
-          content: m.content,
-        };
+        return { role: "tool", tool_call_id: m.tool_call_id!, content: m.content };
       }
       if (m.tool_calls) {
         return {
@@ -127,7 +128,7 @@ async function callOpenAI(
           content: null,
         };
       }
-      return { role: m.role as "user" | "assistant", content: m.content };
+      return { role: m.role, content: m.content };
     }),
   ];
 
@@ -136,22 +137,19 @@ async function callOpenAI(
     messages: openaiMessages,
     tools: tools.length > 0
       ? tools.map((t) => ({
-          type: "function" as const,
-          function: {
-            name: t.name,
-            description: t.description,
-            parameters: t.input_schema,
-          },
+          type: "function",
+          function: { name: t.name, description: t.description, parameters: t.input_schema },
         }))
       : undefined,
     tool_choice: tools.length > 0 ? "auto" : undefined,
   });
 
   const choice = response.choices[0];
-  const toolCalls: ToolCall[] = (choice.message.tool_calls ?? []).map((tc) => ({
+  const rawToolCalls: any[] = choice.message.tool_calls ?? [];
+  const toolCalls: ToolCall[] = rawToolCalls.map((tc: any) => ({
     id: tc.id,
-    name: tc.function.name,
-    input: JSON.parse(tc.function.arguments || "{}"),
+    name: tc.function?.name ?? tc.name,
+    input: JSON.parse(tc.function?.arguments ?? "{}"),
   }));
 
   return {

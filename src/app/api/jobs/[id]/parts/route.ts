@@ -57,7 +57,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const items = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
-  const inserted = await db.insert(partsUsed).values(items.map((p) => ({ ...p, jobId }))).returning();
+  const inserted = await db.insert(partsUsed).values(
+    items.map((p) => ({
+      jobId,
+      partName: p.partName,
+      partNumber: p.partNumber ?? null,
+      quantity: p.quantity,
+      unitCostGhs: p.unitCostGhs != null ? String(p.unitCostGhs) : null,
+      receiptKey: p.receiptKey ?? null,
+    }))
+  ).returning();
 
   // Auto-schedule maintenance for recognised parts
   const lifeRows = await db
@@ -102,7 +111,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const parsed = updatePartSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { id, ...updates } = parsed.data;
+  const { id, ...raw } = parsed.data;
+  // Build explicit update object to satisfy Drizzle's numeric column types
+  const updates: Record<string, unknown> = {};
+  if (raw.quantity != null)    updates.quantity    = raw.quantity;
+  if (raw.unitCostGhs != null) updates.unitCostGhs = String(raw.unitCostGhs);
+  if (raw.receiptKey != null)  updates.receiptKey  = raw.receiptKey;
   const [updated] = await db.update(partsUsed).set(updates).where(and(eq(partsUsed.id, id), eq(partsUsed.jobId, jobId))).returning();
   return NextResponse.json({ part: updated });
 }
