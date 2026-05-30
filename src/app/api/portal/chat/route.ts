@@ -8,8 +8,8 @@ import { initialState } from "@/lib/agent/state";
 import { DEFAULT_MODELS, type ModelConfig } from "@/lib/agent/models";
 import type { ChatMessage } from "@/lib/agent/state";
 import { db } from "@/lib/db";
-import { vehicles } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { vehicles, customers } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 
 const schema = z.object({
   messages: z.array(
@@ -30,6 +30,14 @@ export async function POST(req: NextRequest) {
 
   const payload = await verifyPortalToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+
+  const [activeCustomer] = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(and(eq(customers.tel, payload.tel), eq(customers.isActive, true)))
+    .limit(1);
+
+  if (!activeCustomer) return NextResponse.json({ error: "Account is inactive" }, { status: 403 });
 
   // Check AI is enabled
   const [aiEnabled, aiProvider, aiApiKey, aiModel] = await Promise.all([

@@ -10,8 +10,12 @@ export function LocationSetupBanner() {
 
   useEffect(() => {
     fetch("/api/mechanic/location")
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
+        if (!d) {
+          setStatus("dismissed");
+          return;
+        }
         if (d.mechanic?.lat && d.mechanic?.lng) setStatus("set");
         else setStatus("missing");
       })
@@ -24,12 +28,16 @@ export function LocationSetupBanner() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
-        await fetch("/api/mechanic/location", {
+        const res = await fetch("/api/mechanic/location", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ lat, lng }),
         });
         setSaving(false);
+        if (!res.ok) {
+          setSavedMsg("We could not save your location. Please try again.");
+          return;
+        }
         setStatus("set");
         setSavedMsg("Location saved! Customers can now find your shop.");
       },

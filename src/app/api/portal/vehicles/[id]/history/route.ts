@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { vehicles, repairJobs, mechanics, jobPhotos, partsUsed } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { vehicles, repairJobs, mechanics, jobPhotos, partsUsed, customers } from "@/lib/db/schema";
+import { eq, desc, and } from "drizzle-orm";
 import { verifyPortalToken } from "@/lib/auth/portal-session";
 import { getDownloadUrl } from "@/lib/storage/r2";
 import { cookies } from "next/headers";
@@ -13,6 +13,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const payload = await verifyPortalToken(token);
   if (!payload) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+
+  const [activeCustomer] = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(and(eq(customers.tel, payload.tel), eq(customers.isActive, true)))
+    .limit(1);
+
+  if (!activeCustomer) return NextResponse.json({ error: "Account is inactive" }, { status: 403 });
 
   const { id } = await params;
   const [vehicle] = await db.select().from(vehicles).where(eq(vehicles.id, id)).limit(1);

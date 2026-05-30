@@ -42,15 +42,27 @@ export default function DashboardPage() {
   const [upcoming, setUpcoming] = useState<ScheduleItem[]>([]);
 
   useEffect(() => {
+    const fetchJson = async <T,>(url: string): Promise<T | null> => {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return res.json() as Promise<T>;
+    };
+
     Promise.all([
-      fetch("/api/dashboard/stats").then((r) => r.json()),
-      fetch("/api/jobs?page=1").then((r) => r.json()),
-      fetch("/api/schedule?days=7").then((r) => r.json()),
-    ]).then(([s, j, sc]) => {
-      setStats(s);
-      setRecentJobs(j.jobs?.slice(0, 5) ?? []);
-      setUpcoming(sc.schedule?.slice(0, 5) ?? []);
-    });
+      fetchJson<Stats>("/api/dashboard/stats"),
+      fetchJson<{ jobs?: Job[] }>("/api/jobs?page=1"),
+      fetchJson<{ schedule?: ScheduleItem[] }>("/api/schedule?days=7"),
+    ])
+      .then(([s, j, sc]) => {
+        setStats(s ?? null);
+        setRecentJobs(j?.jobs?.slice(0, 5) ?? []);
+        setUpcoming(sc?.schedule?.slice(0, 5) ?? []);
+      })
+      .catch(() => {
+        setStats(null);
+        setRecentJobs([]);
+        setUpcoming([]);
+      });
   }, []);
 
   return (

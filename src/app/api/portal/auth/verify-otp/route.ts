@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { customerOtps } from "@/lib/db/schema";
+import { customerOtps, customers } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { signPortalToken } from "@/lib/auth/portal-session";
@@ -33,6 +33,16 @@ export async function POST(req: NextRequest) {
 
   if (!record || record.expiresAt < now) {
     return NextResponse.json({ error: "Invalid or expired code" }, { status: 401 });
+  }
+
+  const [activeCustomer] = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(and(eq(customers.tel, tel), eq(customers.isActive, true)))
+    .limit(1);
+
+  if (!activeCustomer) {
+    return NextResponse.json({ error: "Account is inactive" }, { status: 403 });
   }
 
   await db.update(customerOtps).set({ usedAt: now }).where(eq(customerOtps.id, record.id));

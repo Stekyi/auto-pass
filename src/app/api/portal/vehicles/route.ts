@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { customers, vehicles, repairJobs } from "@/lib/db/schema";
-import { eq, max, count } from "drizzle-orm";
+import { eq, max, count, and } from "drizzle-orm";
 import { verifyPortalToken } from "@/lib/auth/portal-session";
 import { cookies } from "next/headers";
 
@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest) {
   const customerRecords = await db
     .select({ id: customers.id })
     .from(customers)
-    .where(eq(customers.tel, payload.tel));
+    .where(and(eq(customers.tel, payload.tel), eq(customers.isActive, true)));
 
   if (customerRecords.length === 0) {
     return NextResponse.json({ vehicles: [] });
