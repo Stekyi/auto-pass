@@ -9,6 +9,18 @@ type Tab = "tenants" | "customers" | "subscriptions" | "parts" | "settings" | "a
 // ── Tenants Tab ────────────────────────────────────────────────────────────────
 function TenantsTab() {
   const [tenants, setTenants] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    code: "",
+    ownerName: "",
+    contactEmail: "",
+    contactTel: "",
+    clerkName: "",
+    clerkEmail: "",
+    clerkPassword: "",
+  });
   const load = () => {
     fetch("/api/admin/tenants")
       .then(r => r.json())
@@ -24,8 +36,116 @@ function TenantsTab() {
     });
     load();
   };
+
+  const createTenant = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setError("");
+    setSaving(true);
+    const res = await fetch("/api/admin/tenants", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        code: form.code,
+        ownerName: form.ownerName || undefined,
+        contactEmail: form.contactEmail || undefined,
+        contactTel: form.contactTel || undefined,
+        clerkName: form.clerkName,
+        clerkEmail: form.clerkEmail,
+        clerkPassword: form.clerkPassword,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      setError(data.error ?? "Failed to create mechanic.");
+      return;
+    }
+    setForm({
+      name: "",
+      code: "",
+      ownerName: "",
+      contactEmail: "",
+      contactTel: "",
+      clerkName: "",
+      clerkEmail: "",
+      clerkPassword: "",
+    });
+    load();
+  };
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <form onSubmit={createTenant} className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input
+            required
+            value={form.name}
+            onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
+            placeholder="Mechanic name (shop name)"
+            className="h-11 px-3 border border-slate-300 rounded-lg text-sm"
+          />
+          <input
+            required
+            value={form.code}
+            onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))}
+            placeholder="Shop code (e.g. KAN)"
+            className="h-11 px-3 border border-slate-300 rounded-lg text-sm uppercase"
+          />
+          <input
+            value={form.ownerName}
+            onChange={(e) => setForm(f => ({ ...f, ownerName: e.target.value }))}
+            placeholder="Owner name (optional)"
+            className="h-11 px-3 border border-slate-300 rounded-lg text-sm"
+          />
+          <input
+            value={form.contactTel}
+            onChange={(e) => setForm(f => ({ ...f, contactTel: e.target.value }))}
+            placeholder="Contact phone (optional)"
+            className="h-11 px-3 border border-slate-300 rounded-lg text-sm"
+          />
+          <input
+            type="email"
+            value={form.contactEmail}
+            onChange={(e) => setForm(f => ({ ...f, contactEmail: e.target.value }))}
+            placeholder="Contact email (optional)"
+            className="h-11 px-3 border border-slate-300 rounded-lg text-sm"
+          />
+        </div>
+
+        <div className="border-t border-slate-100 pt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input
+            required
+            value={form.clerkName}
+            onChange={(e) => setForm(f => ({ ...f, clerkName: e.target.value }))}
+            placeholder="Staff name (first user)"
+            className="h-11 px-3 border border-slate-300 rounded-lg text-sm"
+          />
+          <input
+            required
+            type="email"
+            value={form.clerkEmail}
+            onChange={(e) => setForm(f => ({ ...f, clerkEmail: e.target.value }))}
+            placeholder="Staff email"
+            className="h-11 px-3 border border-slate-300 rounded-lg text-sm"
+          />
+          <input
+            required
+            type="password"
+            value={form.clerkPassword}
+            onChange={(e) => setForm(f => ({ ...f, clerkPassword: e.target.value }))}
+            placeholder="Staff temporary password"
+            className="h-11 px-3 border border-slate-300 rounded-lg text-sm"
+          />
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <div className="flex items-center justify-end">
+          <button type="submit" disabled={saving} className="h-11 px-4 bg-blue-600 text-white text-sm font-medium rounded-lg disabled:bg-blue-400">
+            {saving ? "Creating..." : "Create Mechanic"}
+          </button>
+        </div>
+      </form>
+
       {tenants.map((t: any) => (
         <div key={t.id} className="bg-white border border-slate-200 rounded-xl p-4">
           <div className="flex items-center justify-between">
