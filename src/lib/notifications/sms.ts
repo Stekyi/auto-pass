@@ -17,10 +17,10 @@ export async function sendSms(
 
   switch (provider ?? "arkesel") {
     case "arkesel":
-      await sendArkesel({ apiKey, senderId: senderId ?? "GOROSAY", recipient, message });
+      await sendArkesel({ apiKey, senderId: senderId ?? "AUTOPASS", recipient, message });
       break;
     case "mnotify":
-      await sendMNotify({ apiKey, senderId: senderId ?? "GOROSAY", recipient, message });
+      await sendMNotify({ apiKey, senderId: senderId ?? "AUTOPASS", recipient, message });
       break;
     default:
       throw new Error(`Unknown SMS provider: ${provider}`);

@@ -20,21 +20,10 @@ const r2 = new S3Client({
 
 const BUCKET = process.env.R2_BUCKET_NAME!;
 
-export function vehicleFolderKey(customerId: string, vehicleId: string) {
-  return `customers/${customerId}/vehicles/${vehicleId}`;
-}
+export type JobFileType = "before" | "after" | "general" | "receipt" | "voice";
 
-export function driverFolderKey(customerId: string, driverId: string) {
-  return `customers/${customerId}/drivers/${driverId}`;
-}
-
-export function docFileKey(
-  folderKey: string,
-  docTypeSlug: string,
-  version: "current" | "previous",
-  ext: string
-) {
-  return `${folderKey}/${docTypeSlug}/${version}.${ext}`;
+export function jobFileKey(jobId: string, fileType: JobFileType, filename: string) {
+  return `jobs/${jobId}/${fileType}/${filename}`;
 }
 
 export async function getUploadUrl(
@@ -44,7 +33,7 @@ export async function getUploadUrl(
   return getSignedUrl(
     r2,
     new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: contentType }),
-    { expiresIn: 900 } // 15 minutes
+    { expiresIn: 900 }
   );
 }
 
@@ -52,7 +41,7 @@ export async function getDownloadUrl(key: string): Promise<string> {
   return getSignedUrl(
     r2,
     new GetObjectCommand({ Bucket: BUCKET, Key: key }),
-    { expiresIn: 3600 } // 1 hour
+    { expiresIn: 3600 }
   );
 }
 
@@ -60,7 +49,7 @@ export async function getPublicDownloadUrl(key: string): Promise<string> {
   return getSignedUrl(
     r2,
     new GetObjectCommand({ Bucket: BUCKET, Key: key }),
-    { expiresIn: 60 * 60 * 24 * 6 } // 6 days (R2 max is 7)
+    { expiresIn: 60 * 60 * 24 * 6 }
   );
 }
 
@@ -68,10 +57,7 @@ export async function deleteFile(key: string): Promise<void> {
   await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
 }
 
-export async function copyFile(
-  sourceKey: string,
-  destKey: string
-): Promise<void> {
+export async function copyFile(sourceKey: string, destKey: string): Promise<void> {
   await r2.send(
     new CopyObjectCommand({
       Bucket: BUCKET,
@@ -81,21 +67,6 @@ export async function copyFile(
   );
 }
 
-/** Rotate versions: current → previous, delete old previous.
- *  Returns the new current key (caller saves this as the upload target). */
-export async function rotateDocumentVersions(
-  currentKey: string | null,
-  previousKey: string | null
-): Promise<void> {
-  if (previousKey) {
-    await deleteFile(previousKey).catch(() => {});
-  }
-  if (currentKey) {
-    await copyFile(currentKey, previousKey!).catch(() => {});
-    await deleteFile(currentKey).catch(() => {});
-  }
-}
-
 export function extFromMime(mimeType: string): string {
   const map: Record<string, string> = {
     "application/pdf": "pdf",
@@ -103,6 +74,9 @@ export function extFromMime(mimeType: string): string {
     "image/jpg": "jpg",
     "image/png": "png",
     "image/webp": "webp",
+    "audio/webm": "webm",
+    "audio/ogg": "ogg",
+    "audio/mpeg": "mp3",
   };
   return map[mimeType] ?? "bin";
 }

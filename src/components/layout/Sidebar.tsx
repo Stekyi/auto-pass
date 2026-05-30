@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Users, Car, Wrench, Calendar, Settings, LogOut,
+  LayoutDashboard, Users, Car, Wrench, Calendar, Settings, LogOut, BarChart3,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -13,6 +13,7 @@ const NAV = [
   { href: "/vehicles",   label: "Vehicles",   icon: Car },
   { href: "/repairs",    label: "Repairs",    icon: Wrench },
   { href: "/schedule",   label: "Schedule",   icon: Calendar },
+  { href: "/reports",    label: "Reports",    icon: BarChart3 },
   { href: "/admin",      label: "Admin",      icon: Settings },
 ];
 

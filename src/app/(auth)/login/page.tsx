@@ -36,10 +36,10 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-xl mb-4">
-              <span className="text-white font-bold text-lg">G</span>
+              <span className="text-white font-bold text-lg">A</span>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">Gorosay</h1>
-            <p className="text-sm text-slate-500 mt-1">Document Management System</p>
+            <h1 className="text-2xl font-bold text-slate-900">AutoPass</h1>
+            <p className="text-sm text-slate-500 mt-1">Vehicle Service History</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -53,7 +53,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="staff@gorosay.com"
+                placeholder="staff@autopass.app"
               />
             </div>
 

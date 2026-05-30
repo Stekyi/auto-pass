@@ -45,7 +45,7 @@ export async function sendEmail(opts: EmailOptions): Promise<void> {
 
   const transport = await getTransport();
   await transport.sendMail({
-    from: `"${fromName ?? "Gorosay"}" <${fromAddress}>`,
+    from: `"${fromName ?? "AutoPass"}" <${fromAddress}>`,
     to: opts.to,
     subject: opts.subject,
     html: opts.html,
@@ -55,7 +55,7 @@ export async function sendEmail(opts: EmailOptions): Promise<void> {
 
 // ── Email templates ──────────────────────────────────────────────────────────
 
-function emailWrapper(content: string, fromName = "Gorosay") {
+function emailWrapper(content: string, fromName = "AutoPass") {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -90,13 +90,13 @@ export async function sendWelcomeEmail(customer: {
   email: string;
   customerNumber: string;
 }): Promise<void> {
-  const fromName = (await getSetting(SETTING_KEYS.EMAIL_FROM_NAME)) ?? "Gorosay";
+  const fromName = (await getSetting(SETTING_KEYS.EMAIL_FROM_NAME)) ?? "AutoPass";
 
   const content = `
     <p style="margin:0 0 8px;font-size:16px;color:#111827;">Hi <strong>${customer.name}</strong>,</p>
     <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6;">
-      Welcome! You've been successfully registered on our document management platform.
-      We'll keep track of your vehicle and driver documents and alert you before anything expires.
+      Welcome to AutoPass! Your vehicle service history is now being tracked digitally.
+      We'll notify you when services are coming due so you can stay ahead of maintenance.
     </p>
     <table style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;width:100%;border-collapse:collapse;margin-bottom:20px;">
       <tr>
@@ -113,7 +113,7 @@ export async function sendWelcomeEmail(customer: {
     to: customer.email,
     subject: `Welcome to ${fromName} — You're all set!`,
     html: emailWrapper(content, fromName),
-    text: `Hi ${customer.name}, welcome! Your account ID is ${customer.customerNumber}. We'll alert you before your documents expire.`,
+    text: `Hi ${customer.name}, welcome to AutoPass! Your account ID is ${customer.customerNumber}. We'll alert you when services are coming due.`,
   });
 }
 
@@ -127,7 +127,7 @@ export async function sendDocumentUploadEmail(params: {
   downloadUrl: string;
 }): Promise<void> {
   const { customerEmail, customerName, documentType, entityRef, issueDate, expiryDate, downloadUrl } = params;
-  const fromName = (await getSetting(SETTING_KEYS.EMAIL_FROM_NAME)) ?? "Gorosay";
+  const fromName = (await getSetting(SETTING_KEYS.EMAIL_FROM_NAME)) ?? "AutoPass";
 
   const rows = [
     ["Document Type", documentType],

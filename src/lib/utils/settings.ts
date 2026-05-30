@@ -40,9 +40,11 @@ export function invalidateSetting(key: string) {
 
 // Typed accessors
 export const SETTING_KEYS = {
-  PRICE_NEW_VEHICLE: "price_new_vehicle",
-  PRICE_NEW_DRIVER: "price_new_driver",
-  PRICE_RENEWAL: "price_renewal",
+  // ── Pricing ────────────────────────────────────────────────────────────────
+  // All prices in Ghana Cedis (GHC). Defaults applied in getPrices().
+  PRICE_VEHICLE_REGISTRATION: "price_vehicle_registration", // per vehicle added
+  PRICE_SUBSCRIPTION_GHS: "price_subscription_ghs",         // annual mechanic subscription
+  // ── Notifications ──────────────────────────────────────────────────────────
   SMS_PROVIDER: "sms_provider",
   SMS_API_KEY: "sms_api_key",
   SMS_SENDER_ID: "sms_sender_id",
@@ -55,18 +57,24 @@ export const SETTING_KEYS = {
   EMAIL_SMTP_USERNAME: "email_smtp_username",
   EMAIL_ENABLED: "email_enabled",
   NOTIFY_DAYS_BEFORE: "notify_days_before",
+  // ── App ────────────────────────────────────────────────────────────────────
+  APP_NAME: "app_name",
+  PORTAL_OTP_EXPIRY_MINS: "portal_otp_expiry_mins",
+  // ── AI Assistant ───────────────────────────────────────────────────────────
+  AI_ENABLED: "ai_enabled",
+  AI_PROVIDER: "ai_provider",
+  AI_API_KEY: "ai_api_key",
+  AI_MODEL: "ai_model",
 } as const;
 
-export async function getPrices() {
+export async function getPrices(): Promise<{ vehicleRegistration: number; subscription: number }> {
   const s = await getSettings([
-    SETTING_KEYS.PRICE_NEW_VEHICLE,
-    SETTING_KEYS.PRICE_NEW_DRIVER,
-    SETTING_KEYS.PRICE_RENEWAL,
+    SETTING_KEYS.PRICE_VEHICLE_REGISTRATION,
+    SETTING_KEYS.PRICE_SUBSCRIPTION_GHS,
   ]);
   return {
-    newVehicle: parseFloat(s[SETTING_KEYS.PRICE_NEW_VEHICLE] ?? "50"),
-    newDriver: parseFloat(s[SETTING_KEYS.PRICE_NEW_DRIVER] ?? "15"),
-    renewal: parseFloat(s[SETTING_KEYS.PRICE_RENEWAL] ?? "20"),
+    vehicleRegistration: parseFloat(s[SETTING_KEYS.PRICE_VEHICLE_REGISTRATION] ?? "50"),
+    subscription: parseFloat(s[SETTING_KEYS.PRICE_SUBSCRIPTION_GHS] ?? "100"),
   };
 }
 

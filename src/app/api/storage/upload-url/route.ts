@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/session";
-import { getUploadUrl, extFromMime } from "@/lib/storage/r2";
+import { getUploadUrl, jobFileKey, extFromMime, type JobFileType } from "@/lib/storage/r2";
 import { z } from "zod";
 
 const schema = z.object({
-  entityType: z.enum(["vehicle", "driver"]),
-  entityId: z.string().uuid(),
-  customerId: z.string().uuid(),
-  docTypeSlug: z.string().min(1),
+  jobId: z.string().uuid(),
+  fileType: z.enum(["before", "after", "general", "receipt", "voice"]),
+  fileName: z.string().min(1),
   mimeType: z.string().min(1),
 });
 
@@ -21,15 +20,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { entityType, entityId, customerId, docTypeSlug, mimeType } = parsed.data;
+  const { jobId, fileType, fileName, mimeType } = parsed.data;
   const ext = extFromMime(mimeType);
-  const folderBase =
-    entityType === "vehicle"
-      ? `customers/${customerId}/vehicles/${entityId}`
-      : `customers/${customerId}/drivers/${entityId}`;
+  const safeBase = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const key = jobFileKey(jobId, fileType as JobFileType, `${Date.now()}_${safeBase}.${ext}`);
+  const uploadUrl = await getUploadUrl(key, mimeType);
 
-  const fileKey = `${folderBase}/${docTypeSlug}/current.${ext}`;
-  const uploadUrl = await getUploadUrl(fileKey, mimeType);
-
-  return NextResponse.json({ uploadUrl, fileKey });
+  return NextResponse.json({ uploadUrl, fileKey: key });
 }

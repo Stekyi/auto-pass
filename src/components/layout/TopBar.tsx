@@ -5,17 +5,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
-  LogOut, User, KeyRound, X, Eye, EyeOff, FileText,
-  LayoutDashboard, Users, Search, Calendar, Settings,
+  LogOut, User, KeyRound, X, Eye, EyeOff, Car,
+  LayoutDashboard, Users, Wrench, CalendarClock, Settings, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
   { href: "/customers", label: "Customers", icon: Users, adminOnly: false },
-  { href: "/reports", label: "Search & Reports", icon: Search, adminOnly: false },
-  { href: "/calendar", label: "Calendar", icon: Calendar, adminOnly: false },
-  { href: "/admin", label: "Admin", icon: Settings, adminOnly: true },
+  { href: "/vehicles", label: "Vehicles", icon: Car, adminOnly: false },
+  { href: "/repairs", label: "Repairs", icon: Wrench, adminOnly: false },
+  { href: "/schedule", label: "Schedule", icon: CalendarClock, adminOnly: false },
+  { href: "/reports",  label: "Reports",  icon: BarChart3,     adminOnly: false },
+  { href: "/admin",    label: "Admin",    icon: Settings,      adminOnly: true  },
 ];
 
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
@@ -92,9 +94,9 @@ export function TopBar() {
       <header className="h-14 bg-slate-900 flex items-center px-4 gap-2 border-b border-slate-800 sticky top-0 z-40">
         <Link href="/dashboard" className="flex items-center gap-2.5 mr-3 flex-shrink-0">
           <div className="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center">
-            <FileText className="w-4 h-4 text-white" />
+            <Car className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-white text-sm hidden sm:block">Gorosay</span>
+          <span className="font-bold text-white text-sm hidden sm:block">AutoPass</span>
         </Link>
 
         <nav className="flex items-center gap-0.5 flex-1">
