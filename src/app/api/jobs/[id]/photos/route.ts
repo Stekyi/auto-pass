@@ -17,12 +17,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id: jobId } = await params;
   const [job] = await db.select({ id: repairJobs.id }).from(repairJobs)
-    .where(and(eq(repairJobs.id, jobId), eq(repairJobs.mechanicId, user.mechanicId)))
+    .where(isAdmin ? eq(repairJobs.id, jobId) : and(eq(repairJobs.id, jobId), eq(repairJobs.mechanicId, user.mechanicId!)))
     .limit(1);
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
@@ -38,15 +39,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id: jobId } = await params;
   const photoId = new URL(req.url).searchParams.get("photoId");
   if (!photoId) return NextResponse.json({ error: "photoId required" }, { status: 400 });
 
   const [job] = await db.select({ id: repairJobs.id }).from(repairJobs)
-    .where(and(eq(repairJobs.id, jobId), eq(repairJobs.mechanicId, user.mechanicId)))
+    .where(isAdmin ? eq(repairJobs.id, jobId) : and(eq(repairJobs.id, jobId), eq(repairJobs.mechanicId, user.mechanicId!)))
     .limit(1);
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 

@@ -15,8 +15,9 @@ import { subDays, subMonths } from "date-fns";
 import type { ToolDefinition } from "./tools";
 
 export interface MechanicContext {
-  mechanicId: string;
+  mechanicId?: string | null;
   shopName?: string;
+  isAdmin?: boolean;
 }
 
 function since(days: number): string {
@@ -109,11 +110,10 @@ export async function getMechanicWorkshopStats(
   input: { period_days?: string },
   ctx: MechanicContext
 ) {
-  const mid = ctx.mechanicId;
   const cutoff = input.period_days ? since(parseInt(input.period_days)) : null;
   const filter = cutoff
-    ? and(eq(repairJobs.mechanicId, mid), gte(repairJobs.jobDate, cutoff))
-    : eq(repairJobs.mechanicId, mid);
+    ? (ctx.isAdmin ? gte(repairJobs.jobDate, cutoff) : and(eq(repairJobs.mechanicId, ctx.mechanicId!), gte(repairJobs.jobDate, cutoff)))
+    : (ctx.isAdmin ? sql`true` : eq(repairJobs.mechanicId, ctx.mechanicId!));
 
   const [totals] = await db
     .select({
@@ -161,8 +161,8 @@ export async function getMechanicTopParts(
     .innerJoin(repairJobs, eq(partsUsed.jobId, repairJobs.id))
     .where(
       cutoff
-        ? and(eq(repairJobs.mechanicId, ctx.mechanicId), gte(repairJobs.jobDate, cutoff))
-        : eq(repairJobs.mechanicId, ctx.mechanicId)
+        ? (ctx.isAdmin ? gte(repairJobs.jobDate, cutoff) : and(eq(repairJobs.mechanicId, ctx.mechanicId!), gte(repairJobs.jobDate, cutoff)))
+        : (ctx.isAdmin ? sql`true` : eq(repairJobs.mechanicId, ctx.mechanicId!))
     )
     .groupBy(partsUsed.partName)
     .orderBy(desc(count(partsUsed.id)))
@@ -185,8 +185,8 @@ export async function getMechanicTopVehicles(
   const cutoff = input.period_days ? since(parseInt(input.period_days)) : null;
   const lim = parseInt(input.limit ?? "5", 10);
   const filter = cutoff
-    ? and(eq(repairJobs.mechanicId, ctx.mechanicId), gte(repairJobs.jobDate, cutoff))
-    : eq(repairJobs.mechanicId, ctx.mechanicId);
+    ? (ctx.isAdmin ? gte(repairJobs.jobDate, cutoff) : and(eq(repairJobs.mechanicId, ctx.mechanicId!), gte(repairJobs.jobDate, cutoff)))
+    : (ctx.isAdmin ? sql`true` : eq(repairJobs.mechanicId, ctx.mechanicId!));
 
   const rows = await db
     .select({
@@ -224,8 +224,8 @@ export async function getMechanicTopCustomers(
   const cutoff = input.period_days ? since(parseInt(input.period_days)) : null;
   const lim = parseInt(input.limit ?? "5", 10);
   const filter = cutoff
-    ? and(eq(repairJobs.mechanicId, ctx.mechanicId), gte(repairJobs.jobDate, cutoff))
-    : eq(repairJobs.mechanicId, ctx.mechanicId);
+    ? (ctx.isAdmin ? gte(repairJobs.jobDate, cutoff) : and(eq(repairJobs.mechanicId, ctx.mechanicId!), gte(repairJobs.jobDate, cutoff)))
+    : (ctx.isAdmin ? sql`true` : eq(repairJobs.mechanicId, ctx.mechanicId!));
 
   const rows = await db
     .select({
@@ -266,7 +266,11 @@ export async function getMechanicRevenueTrend(
       jobs:    count(repairJobs.id),
     })
     .from(repairJobs)
-    .where(and(eq(repairJobs.mechanicId, ctx.mechanicId), gte(repairJobs.jobDate, cutoff)))
+    .where(
+      ctx.isAdmin
+        ? gte(repairJobs.jobDate, cutoff)
+        : and(eq(repairJobs.mechanicId, ctx.mechanicId!), gte(repairJobs.jobDate, cutoff))
+    )
     .groupBy(sql`to_char(${repairJobs.jobDate}::date, 'YYYY-MM')`)
     .orderBy(sql`to_char(${repairJobs.jobDate}::date, 'YYYY-MM')`);
 
@@ -308,7 +312,11 @@ export async function getMechanicVehicleHistory(
       totalCost:   repairJobs.totalCostGhs,
     })
     .from(repairJobs)
-    .where(and(eq(repairJobs.vehicleId, veh.id), eq(repairJobs.mechanicId, ctx.mechanicId)))
+    .where(
+      ctx.isAdmin
+        ? eq(repairJobs.vehicleId, veh.id)
+        : and(eq(repairJobs.vehicleId, veh.id), eq(repairJobs.mechanicId, ctx.mechanicId!))
+    )
     .orderBy(desc(repairJobs.jobDate))
     .limit(lim);
 
@@ -352,11 +360,16 @@ export async function getMechanicPendingMaintenance(
     .leftJoin(vehicles,  eq(maintenanceSchedule.vehicleId,  vehicles.id))
     .leftJoin(customers, eq(vehicles.customerId, customers.id))
     .where(
-      and(
-        eq(maintenanceSchedule.mechanicId, ctx.mechanicId),
-        eq(maintenanceSchedule.isCompleted, false),
-        lte(maintenanceSchedule.dueDateEstimate, future)
-      )
+      ctx.isAdmin
+        ? and(
+            eq(maintenanceSchedule.isCompleted, false),
+            lte(maintenanceSchedule.dueDateEstimate, future)
+          )
+        : and(
+            eq(maintenanceSchedule.mechanicId, ctx.mechanicId!),
+            eq(maintenanceSchedule.isCompleted, false),
+            lte(maintenanceSchedule.dueDateEstimate, future)
+          )
     )
     .orderBy(maintenanceSchedule.dueDateEstimate)
     .limit(20);

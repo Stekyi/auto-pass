@@ -21,8 +21,9 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden — super-admins use the admin panel" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const [aiEnabled, aiProvider, aiApiKey, aiModel] = await Promise.all([
     getSetting(SETTING_KEYS.AI_ENABLED),
@@ -41,11 +42,13 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const [mechanic] = await db
-    .select({ name: mechanics.name })
-    .from(mechanics)
-    .where(eq(mechanics.id, user.mechanicId!))
-    .limit(1);
+  const [mechanic] = user.mechanicId
+    ? await db
+        .select({ name: mechanics.name })
+        .from(mechanics)
+        .where(eq(mechanics.id, user.mechanicId))
+        .limit(1)
+    : [null];
 
   const config: ModelConfig = {
     provider: (aiProvider ?? "anthropic") as "anthropic" | "openai",
@@ -54,8 +57,9 @@ export async function POST(req: NextRequest) {
   };
 
   const agent = buildMechanicAgent(config, {
-    mechanicId: user.mechanicId!,
-    shopName: mechanic?.name,
+    mechanicId: user.mechanicId ?? null,
+    shopName: mechanic?.name ?? "All workshops",
+    isAdmin,
   });
 
   const state = initialState(parsed.data.messages as ChatMessage[], "", undefined, undefined);

@@ -19,16 +19,17 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const mid = user.mechanicId;
   const period = new URL(req.url).searchParams.get("period") ?? "30d";
   const since = periodStart(period);
 
   const jobFilter = since
-    ? and(eq(repairJobs.mechanicId, mid), gte(repairJobs.jobDate, since))
-    : eq(repairJobs.mechanicId, mid);
+    ? (isAdmin ? gte(repairJobs.jobDate, since) : and(eq(repairJobs.mechanicId, mid!), gte(repairJobs.jobDate, since)))
+    : (isAdmin ? sql`true` : eq(repairJobs.mechanicId, mid!));
 
   // ── Core job metrics ──────────────────────────────────────────────────────
   const [totals] = await db
@@ -109,10 +110,14 @@ export async function GET(req: NextRequest) {
       jobs:    count(repairJobs.id),
     })
     .from(repairJobs)
-    .where(and(
-      eq(repairJobs.mechanicId, mid),
-      gte(repairJobs.jobDate, subMonths(new Date(), 6).toISOString().split("T")[0])
-    ))
+    .where(
+      isAdmin
+        ? gte(repairJobs.jobDate, subMonths(new Date(), 6).toISOString().split("T")[0])
+        : and(
+            eq(repairJobs.mechanicId, mid!),
+            gte(repairJobs.jobDate, subMonths(new Date(), 6).toISOString().split("T")[0])
+          )
+    )
     .groupBy(sql`to_char(${repairJobs.jobDate}::date, 'YYYY-MM')`)
     .orderBy(sql`to_char(${repairJobs.jobDate}::date, 'YYYY-MM')`);
 
@@ -120,20 +125,34 @@ export async function GET(req: NextRequest) {
   const [overdueCount] = await db
     .select({ count: count() })
     .from(maintenanceSchedule)
-    .where(and(
-      eq(maintenanceSchedule.mechanicId, mid),
-      eq(maintenanceSchedule.isCompleted, false),
-      sql`${maintenanceSchedule.dueDateEstimate} < current_date`
-    ));
+    .where(
+      isAdmin
+        ? and(
+            eq(maintenanceSchedule.isCompleted, false),
+            sql`${maintenanceSchedule.dueDateEstimate} < current_date`
+          )
+        : and(
+            eq(maintenanceSchedule.mechanicId, mid!),
+            eq(maintenanceSchedule.isCompleted, false),
+            sql`${maintenanceSchedule.dueDateEstimate} < current_date`
+          )
+    );
 
   const [upcomingCount] = await db
     .select({ count: count() })
     .from(maintenanceSchedule)
-    .where(and(
-      eq(maintenanceSchedule.mechanicId, mid),
-      eq(maintenanceSchedule.isCompleted, false),
-      sql`${maintenanceSchedule.dueDateEstimate} between current_date and current_date + interval '30 days'`
-    ));
+    .where(
+      isAdmin
+        ? and(
+            eq(maintenanceSchedule.isCompleted, false),
+            sql`${maintenanceSchedule.dueDateEstimate} between current_date and current_date + interval '30 days'`
+          )
+        : and(
+            eq(maintenanceSchedule.mechanicId, mid!),
+            eq(maintenanceSchedule.isCompleted, false),
+            sql`${maintenanceSchedule.dueDateEstimate} between current_date and current_date + interval '30 days'`
+          )
+    );
 
   return NextResponse.json({
     period,

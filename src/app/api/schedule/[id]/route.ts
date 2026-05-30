@@ -13,21 +13,23 @@ const updateSchema = z.object({
   dueKmEstimate: z.number().int().optional(),
 });
 
-async function getEntry(id: string, mechanicId: string) {
-  const [row] = await db.select().from(maintenanceSchedule)
-    .where(and(eq(maintenanceSchedule.id, id), eq(maintenanceSchedule.mechanicId, mechanicId)))
-    .limit(1);
+async function getEntry(id: string, mechanicId: string | null | undefined, isAdmin: boolean) {
+  const where = isAdmin
+    ? eq(maintenanceSchedule.id, id)
+    : and(eq(maintenanceSchedule.id, id), eq(maintenanceSchedule.mechanicId, mechanicId!));
+  const [row] = await db.select().from(maintenanceSchedule).where(where).limit(1);
   return row;
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const entry = await getEntry(id, user.mechanicId);
+  const entry = await getEntry(id, user.mechanicId, isAdmin);
   if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
@@ -41,11 +43,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const entry = await getEntry(id, user.mechanicId);
+  const entry = await getEntry(id, user.mechanicId, isAdmin);
   if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await db.delete(maintenanceSchedule).where(eq(maintenanceSchedule.id, id));

@@ -21,21 +21,23 @@ const updatePartSchema = z.object({
   receiptKey: z.string().optional(),
 });
 
-async function ensureJobAccess(jobId: string, mechanicId: string) {
-  const [job] = await db.select().from(repairJobs)
-    .where(and(eq(repairJobs.id, jobId), eq(repairJobs.mechanicId, mechanicId)))
-    .limit(1);
+async function ensureJobAccess(jobId: string, mechanicId: string | null | undefined, isAdmin: boolean) {
+  const where = isAdmin
+    ? eq(repairJobs.id, jobId)
+    : and(eq(repairJobs.id, jobId), eq(repairJobs.mechanicId, mechanicId!));
+  const [job] = await db.select().from(repairJobs).where(where).limit(1);
   return job;
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id: jobId } = await params;
-  const job = await ensureJobAccess(jobId, user.mechanicId);
+  const job = await ensureJobAccess(jobId, user.mechanicId, isAdmin);
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const parts = await db.select().from(partsUsed).where(eq(partsUsed.jobId, jobId));
@@ -45,11 +47,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id: jobId } = await params;
-  const job = await ensureJobAccess(jobId, user.mechanicId);
+  const job = await ensureJobAccess(jobId, user.mechanicId, isAdmin);
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
@@ -82,7 +85,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (lifeRows.length > 0) {
     await db.insert(maintenanceSchedule).values(
       lifeRows.map((row) => ({
-        mechanicId: user.mechanicId!,
+        mechanicId: job.mechanicId,
         vehicleId: job.vehicleId,
         sourceJobId: jobId,
         partName: row.partName,
@@ -100,11 +103,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id: jobId } = await params;
-  const job = await ensureJobAccess(jobId, user.mechanicId);
+  const job = await ensureJobAccess(jobId, user.mechanicId, isAdmin);
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
@@ -124,11 +128,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id: jobId } = await params;
-  const job = await ensureJobAccess(jobId, user.mechanicId);
+  const job = await ensureJobAccess(jobId, user.mechanicId, isAdmin);
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const partId = new URL(req.url).searchParams.get("partId");

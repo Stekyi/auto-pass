@@ -10,8 +10,9 @@ import { format } from "date-fns";
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
 
@@ -30,7 +31,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     .leftJoin(vehicles, eq(maintenanceSchedule.vehicleId, vehicles.id))
     .leftJoin(customers, eq(vehicles.customerId, customers.id))
     .leftJoin(mechanics, eq(maintenanceSchedule.mechanicId, mechanics.id))
-    .where(and(eq(maintenanceSchedule.id, id), eq(maintenanceSchedule.mechanicId, user.mechanicId)))
+    .where(isAdmin ? eq(maintenanceSchedule.id, id) : and(eq(maintenanceSchedule.id, id), eq(maintenanceSchedule.mechanicId, user.mechanicId!)))
     .limit(1);
 
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });

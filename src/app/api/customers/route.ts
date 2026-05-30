@@ -29,8 +29,9 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
@@ -38,10 +39,10 @@ export async function GET(req: NextRequest) {
   const limit = 20;
   const offset = (page - 1) * limit;
 
-  const conditions = [
-    eq(customers.mechanicId, user.mechanicId),
-    eq(customers.isActive, true),
-  ];
+  const conditions: any[] = [eq(customers.isActive, true)];
+  if (!isAdmin && user.mechanicId) {
+    conditions.unshift(eq(customers.mechanicId, user.mechanicId));
+  }
 
   if (q) {
     conditions.push(or(ilike(customers.fullName, `%${q}%`), ilike(customers.tel, `%${q}%`))!);

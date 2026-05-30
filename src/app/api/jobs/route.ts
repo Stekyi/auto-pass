@@ -75,8 +75,9 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const vehicleId = searchParams.get("vehicleId");
@@ -87,7 +88,8 @@ export async function GET(req: NextRequest) {
   const limit = 20;
   const offset = (page - 1) * limit;
 
-  const conditions = [eq(repairJobs.mechanicId, user.mechanicId)];
+  const conditions = [] as any[];
+  if (!isAdmin && user.mechanicId) conditions.push(eq(repairJobs.mechanicId, user.mechanicId));
   if (vehicleId) conditions.push(eq(repairJobs.vehicleId, vehicleId));
   if (status) conditions.push(eq(repairJobs.status, status as "PENDING" | "IN_PROGRESS" | "DONE" | "CANCELLED"));
   if (dateFrom) conditions.push(gte(repairJobs.jobDate, dateFrom));
@@ -96,7 +98,7 @@ export async function GET(req: NextRequest) {
   const rows = await db
     .select()
     .from(repairJobs)
-    .where(and(...conditions))
+    .where(conditions.length ? and(...conditions) : sql`true`)
     .orderBy(repairJobs.jobDate)
     .limit(limit)
     .offset(offset);

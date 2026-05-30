@@ -23,11 +23,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const customer = await getCustomer(id, user.mechanicId);
+  const customer = isAdmin
+    ? await db.select().from(customers).where(eq(customers.id, id)).limit(1).then((r) => r[0])
+    : await getCustomer(id, user.mechanicId!);
   if (!customer) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const [customerVehicles, [jobCount]] = await Promise.all([
@@ -42,11 +45,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const customer = await getCustomer(id, user.mechanicId);
+  const customer = isAdmin
+    ? await db.select().from(customers).where(eq(customers.id, id)).limit(1).then((r) => r[0])
+    : await getCustomer(id, user.mechanicId!);
   if (!customer) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
@@ -65,11 +71,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const customer = await getCustomer(id, user.mechanicId);
+  const customer = isAdmin
+    ? await db.select().from(customers).where(eq(customers.id, id)).limit(1).then((r) => r[0])
+    : await getCustomer(id, user.mechanicId!);
   if (!customer) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await db.update(customers).set({ isActive: false, updatedAt: new Date() }).where(eq(customers.id, id));

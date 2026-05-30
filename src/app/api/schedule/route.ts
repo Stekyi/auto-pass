@@ -17,8 +17,9 @@ const createSchema = z.object({
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { mechanicId?: string };
-  if (!user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const user = session.user as { mechanicId?: string | null; role?: string };
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !user.mechanicId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const days = parseInt(searchParams.get("days") ?? "90", 10);
@@ -26,6 +27,20 @@ export async function GET(req: NextRequest) {
 
   const today = new Date().toISOString().split("T")[0];
   const futureDate = addDays(new Date(), days).toISOString().split("T")[0];
+
+  const baseFilters = [
+    eq(maintenanceSchedule.isCompleted, false),
+    includeOverdue
+      ? lte(maintenanceSchedule.dueDateEstimate, futureDate)
+      : and(
+          gte(maintenanceSchedule.dueDateEstimate, today),
+          lte(maintenanceSchedule.dueDateEstimate, futureDate)
+        ),
+  ];
+
+  if (!isAdmin && user.mechanicId) {
+    baseFilters.unshift(eq(maintenanceSchedule.mechanicId, user.mechanicId));
+  }
 
   const rows = await db
     .select({
@@ -40,18 +55,7 @@ export async function GET(req: NextRequest) {
     .from(maintenanceSchedule)
     .leftJoin(vehicles, eq(maintenanceSchedule.vehicleId, vehicles.id))
     .leftJoin(customers, eq(vehicles.customerId, customers.id))
-    .where(
-      and(
-        eq(maintenanceSchedule.mechanicId, user.mechanicId),
-        eq(maintenanceSchedule.isCompleted, false),
-        includeOverdue
-          ? lte(maintenanceSchedule.dueDateEstimate, futureDate)
-          : and(
-              gte(maintenanceSchedule.dueDateEstimate, today),
-              lte(maintenanceSchedule.dueDateEstimate, futureDate)
-            )
-      )
-    )
+    .where(and(...baseFilters))
     .orderBy(maintenanceSchedule.dueDateEstimate);
 
   return NextResponse.json({ schedule: rows });

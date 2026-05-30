@@ -34,12 +34,6 @@ export async function proxy(req: NextRequest) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    // Super-admin (no mechanicId) has no workshop data — send to admin panel
-    const isSuperAdmin = !user.mechanicId && user.role === "ADMIN";
-    if (isSuperAdmin && !pathname.startsWith("/admin")) {
-      return NextResponse.redirect(new URL("/admin", req.url));
-    }
-
     return NextResponse.next();
   }
 
