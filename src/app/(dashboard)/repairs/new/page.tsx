@@ -1,7 +1,6 @@
 "use client";
-export const dynamic = "force-dynamic";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { Suspense, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Plus, Trash2 } from "lucide-react";
 import { AutocompleteSelect } from "@/components/shared/AutocompleteSelect";
@@ -19,7 +18,7 @@ interface Part { partName: string; partNumber: string; quantity: number; unitCos
 
 const emptyPart = (): Part => ({ partName: "", partNumber: "", quantity: 1, unitCostGhs: "" });
 
-export default function NewRepairPage() {
+function NewRepairContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedVehicleId = searchParams.get("vehicleId");
@@ -411,5 +410,13 @@ export default function NewRepairPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function NewRepairPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-slate-400 text-sm">Loading...</div>}>
+      <NewRepairContent />
+    </Suspense>
   );
 }
